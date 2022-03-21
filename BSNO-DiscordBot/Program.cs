@@ -11,13 +11,14 @@ namespace BSNO
 {
     public class Program
     {
-        public static Logger Logger;
-        public static DiscordSocketClient Client;
-        public static IServiceProvider Provider;
-        private InteractionService interactionService;
+        public static Logger Logger = null!;
+        public static DiscordSocketClient Client = null!;
+        public static IServiceProvider Provider = null!;
+        private InteractionService _interactionService = null!;
 
         public Program()
         {
+            DotEnv.Load();
             Provider = new ServiceCollection()
                 .AddLogging()
                 .BuildServiceProvider();
@@ -25,13 +26,11 @@ namespace BSNO
 
         public static void Main(string[] args)
         {
-            new Program().MainAsync(args).GetAwaiter().GetResult();
+            new Program().MainAsync().GetAwaiter().GetResult();
         }
 
-        private async Task MainAsync(string[] args)
+        private async Task MainAsync()
         {
-            Console.WriteLine(string.Join(',', args));
-
             Logger = LogManager.GetCurrentClassLogger();
 
             Client = new DiscordSocketClient(new DiscordSocketConfig
@@ -39,7 +38,7 @@ namespace BSNO
                 GatewayIntents = GatewayIntents.All,
                 AlwaysDownloadUsers = true
             });
-            interactionService = new InteractionService(Client);
+            _interactionService = new InteractionService(Client);
             Client.Log += ClientOnLog;
             Client.SlashCommandExecuted += ClientOnSlashCommandExecuted;
             Client.Ready += ClientOnReady;
@@ -49,7 +48,7 @@ namespace BSNO
             Client.GuildScheduledEventCreated += ClientOnGuildScheduledEvent;
             Client.GuildScheduledEventCompleted += ClientOnGuildScheduledEvent;
             Client.GuildScheduledEventCancelled += ClientOnGuildScheduledEvent;
-            await Client.LoginAsync(TokenType.Bot, args[0]);
+            await Client.LoginAsync(TokenType.Bot, Environment.GetEnvironmentVariable("BOT_KEY"));
             await Client.StartAsync();
             while (Console.ReadKey().Key != ConsoleKey.Q)
             {
@@ -70,7 +69,7 @@ namespace BSNO
         private async Task ClientOnSlashCommandExecuted(SocketSlashCommand arg)
         {
             var ctx = new SocketInteractionContext<SocketSlashCommand>(Client, arg);
-            await interactionService.ExecuteCommandAsync(ctx, Provider);
+            await _interactionService.ExecuteCommandAsync(ctx, Provider);
         }
 
         private Task ClientOnLog(LogMessage arg)
@@ -91,23 +90,11 @@ namespace BSNO
 
         private async Task ClientOnReady()
         {
-            var list = (await interactionService.AddModulesAsync(Assembly.GetExecutingAssembly(), Provider)).ToArray();
+            var list = (await _interactionService.AddModulesAsync(Assembly.GetExecutingAssembly(), Provider)).ToArray();
             foreach (var guild in Client.Guilds)
             {
-                await interactionService.AddModulesToGuildAsync(guild, true, list);
+                await _interactionService.AddModulesToGuildAsync(guild, true, list);
             }
-            //var guildCommand = new SlashCommandBuilder();
-            //guildCommand.WithName("ping");
-            //guildCommand.WithDescription("Pings the server.");
-            //try
-            //{
-            //    await Client.CreateGlobalApplicationCommandAsync(guildCommand.Build());
-            //}
-            //catch (HttpException ex)
-            //{
-            //    var json = JsonConvert.SerializeObject(ex.Errors, Formatting.Indented);
-
-            //}
         }
 
         private Task ClientOnInviteCreated(SocketInvite arg)
