@@ -17,11 +17,31 @@ namespace BSNO
             foreach (var line in File.ReadAllLines(path))
             {
                 var parts = line.Split('=', StringSplitOptions.RemoveEmptyEntries);
-                if(parts.Length != 2)
+                if (parts.Length != 2)
                     continue;
                 Environment.SetEnvironmentVariable(parts[0], parts[1]);
             }
 
+            LoadMode();
+        }
+
+        public static void LoadMode()
+        {
+#if DEBUG
+            var path = Path.Join(Directory.GetCurrentDirectory(), ".env.development");
+#else
+            var path = Path.Join(Directory.GetCurrentDirectory(), ".env.production");
+#endif
+            if (!File.Exists(path))
+                return;
+
+            foreach (var line in File.ReadAllLines(path))
+            {
+                var parts = line.Split('=', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length != 2)
+                    continue;
+                Environment.SetEnvironmentVariable(parts[0], parts[1]);
+            }
         }
     }
 }
